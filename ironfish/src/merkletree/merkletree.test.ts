@@ -8,6 +8,68 @@ import { createTestDB } from '../testUtilities/helpers/storage'
 import { MerkleTree, Side } from './merkletree'
 import { depthAtLeafCount } from './utils'
 
+const printTree = async (tree: MerkleTree<string, string, string, string>): Promise<string> => {
+  let toPrint = ''
+  const parents: number[] = []
+  for await (const leaf of tree.leaves.getAllIter()) {
+    if (leaf[0] % 2 === 0) {
+      parents.push(leaf[1].parentIndex)
+    }
+    const a = spacesLevel(0)
+    const spaces = [...new Array(a + 1)].join(' ')
+    toPrint += `${spaces}${normalizeIndex(leaf[0])}${spaces}`
+  }
+
+  toPrint += `\n`
+  toPrint += await printTreeLevel(tree, parents, 1)
+
+  const lines = toPrint.split('\n')
+  lines.reverse()
+  return lines.join('\n')
+}
+
+const normalizeIndex = (i: number) => {
+  const s = i.toString()
+  if (s.length === 1) {
+    return `[${s}] `
+  } else {
+    return `[${s}]`
+  }
+}
+
+const spacesLevel = (level: number): number => {
+  if (level === 0) {
+    return 0
+  }
+
+  return 2 * spacesLevel(level - 1) + 2
+}
+
+const printTreeLevel = async (
+  tree: MerkleTree<string, string, string, string>,
+  indices: number[],
+  level: number,
+): Promise<string> => {
+  if (indices.length === 0) {
+    return ''
+  }
+
+  let toPrint = ''
+  const parents: number[] = []
+  for (const index of indices) {
+    const node = await tree.getNode(index)
+    if (node.parentIndex) {
+      parents.push(node.parentIndex)
+    }
+    const a = spacesLevel(level)
+    const spaces = [...new Array(a + 1)].join(' ')
+    toPrint += `${spaces}${normalizeIndex(index)}${spaces}`
+  }
+  toPrint += `\n`
+  toPrint += await printTreeLevel(tree, parents, level + 1)
+  return toPrint
+}
+
 describe('Merkle tree', function () {
   it('initializes database', async () => {
     const tree = await makeTree()

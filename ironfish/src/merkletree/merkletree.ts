@@ -812,6 +812,110 @@ export class MerkleTree<
   }
 }
 
+// Properties of a subtree of the overall tree starting at a particular root node
+type SubTree = {
+  level: number // the level of the tree root node is at
+  root: number // index of the root of this subtree
+  parent: number // index of the parent of this subtree
+  min: number // min index in this subtree
+  missingNodes: number // number of indices included in the range [min - max] but not included in the subtree
+  max: number // max index in this subtree
+  leafMin: number // min leaf index in this subtree
+  leafMax: number // max leaf index in this subtree
+}
+
+const itemsUnderLevel = (n: number) => 2 ** (n + 1) - 1
+const rootOfSubtree = (n: number) => 2 ** n + n
+
+export const leftSubtree = (tree: SubTree): SubTree | null => {
+  if (tree.level === 0) {
+    return null
+  }
+
+  const isMinRoot = rootOfSubtree(tree.level) === tree.root
+  const maxLeft = tree.min + itemsUnderLevel(tree.level - 1) + tree.missingNodes
+  return {
+    level: tree.level - 1,
+    root: isMinRoot ? rootOfSubtree(tree.level - 1) : tree.root - 1,
+    min: tree.min,
+    parent: tree.root,
+    missingNodes: isMinRoot ? 0 : tree.missingNodes + 1,
+    max: isMinRoot ? maxLeft - 1 : maxLeft,
+    leafMin: tree.leafMin,
+    leafMax: tree.leafMin + Math.floor((tree.leafMax - tree.leafMin) / 2),
+  }
+}
+
+export const rightSubtree = (tree: SubTree): SubTree | null => {
+  if (tree.level === 0) {
+    return null
+  }
+
+  const isMinRoot = rootOfSubtree(tree.level) === tree.root
+  const maxLeft = tree.min + itemsUnderLevel(tree.level - 1) + tree.missingNodes
+  return {
+    level: tree.level - 1,
+    root: isMinRoot ? tree.root - 1 : maxLeft + tree.level,
+    parent: tree.root,
+    min: isMinRoot ? maxLeft : maxLeft + 1,
+    missingNodes: isMinRoot ? 1 : 0,
+    max: tree.max,
+    leafMin: tree.leafMax - Math.floor((tree.leafMax - tree.leafMin) / 2),
+    leafMax: tree.leafMax,
+  }
+}
+
+/**
+ * Takes an index and calculates that node's parent and children index by doing a binary search
+ * of the tree for the node `i`.
+ *
+ * Below is an example of a tree built with 31 elements
+ *
+ *                                               [20]
+ *                      [11]                                            [19]
+ *           [6]                     [10]                    [18]                    [27]
+ *     [3]         [5]         [9]         [14]        [17]        [23]        [26]        [30]
+ *  [1]   [2]   [4]   [7]   [8]   [12]  [13]  [15]  [16]  [21]  [22]  [24]  [25]  [28]  [29]  [31]
+ *
+ * One key concept is minimum subtrees. we can see that subtrees are built in powers of two. Example:
+ * node  1     forms a subtree (level 0)
+ * nodes 1 - 3 form a subtree  (level 1)
+ * nodes 1 - 7 form a subtree  (level 2)
+ * nodes 1 - 15 ...
+ * nodes 1 - 31 ...
+ *
+ * This pattern continues the more nodes are added to the tree. We can use this pattern to do a binary
+ * search for a node's subtree information like it's parent and children. We start at the root
+ * of a minimum subtree containnig the node we are looking for and traverse down
+ *
+ **/
+export const subtreeAt = (index: number): SubTree => {
+  const startingLevel = Math.floor(Math.log2(index))
+  let currSubtree = {
+    level: startingLevel,
+    root: rootOfSubtree(startingLevel),
+    min: 1,
+    parent: rootOfSubtree(startingLevel + 1),
+    missingNodes: 0,
+    max: itemsUnderLevel(startingLevel),
+    leafMin: 0,
+    leafMax: itemsUnderLevel(startingLevel),
+  }
+
+  while (currSubtree.root !== index && currSubtree.level > 0) {
+    const left = leftSubtree(currSubtree)
+    const right = rightSubtree(currSubtree)
+
+    // Should never be null since level > 0
+    Assert.isNotNull(left)
+    Assert.isNotNull(right)
+
+    currSubtree = index <= left.max ? left : right
+  }
+
+  return currSubtree
+}
+
 export enum Side {
   Left = 'Left',
   Right = 'Right',
