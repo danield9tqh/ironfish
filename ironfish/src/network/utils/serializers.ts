@@ -8,6 +8,7 @@ import { BlockHeader } from '../../primitives/blockheader'
 import { Target } from '../../primitives/target'
 import { Transaction } from '../../primitives/transaction'
 import { BigIntUtils } from '../../utils/bigint'
+import { BigInt, Hash, List, U32, U64 } from '../serialization/serializers'
 
 export const MINERS_FEE_TRANSACTION_SIZE_BYTES = 562
 
@@ -17,21 +18,23 @@ export function writeBlockHeader(
   bw: bufio.StaticWriter | bufio.BufferWriter,
   header: BlockHeader,
 ): bufio.StaticWriter | bufio.BufferWriter {
-  bw.writeU32(header.sequence)
-  bw.writeHash(header.previousBlockHash)
-  bw.writeHash(header.noteCommitment.commitment)
-  bw.writeU32(header.noteCommitment.size)
-  bw.writeHash(header.nullifierCommitment.commitment)
-  bw.writeU32(header.nullifierCommitment.size)
-  bw.writeBytes(BigIntUtils.toBytesLE(header.target.targetValue, 32))
-  bw.writeBytes(BigIntUtils.toBytesLE(header.randomness, 8))
-  bw.writeU64(header.timestamp.getTime())
-
   Assert.isTrue(header.minersFee <= 0)
-  bw.writeBytes(BigIntUtils.toBytesLE(-header.minersFee, 8))
-
   Assert.isTrue(header.graffiti.byteLength === 32)
-  bw.writeBytes(header.graffiti)
+
+  new List(
+    new U32(header.sequence),
+    new Hash(header.previousBlockHash),
+    new Hash(header.noteCommitment.commitment),
+    new U32(header.noteCommitment.size),
+    new Hash(header.nullifierCommitment.commitment),
+    new U32(header.nullifierCommitment.size),
+    new BigInt(header.target.targetValue, 32),
+    new BigInt(header.randomness, 8),
+    new U64(header.timestamp.getTime()),
+    new BigInt(-header.minersFee, 8),
+    new Hash(header.graffiti),
+  ).write(bw)
+
   return bw
 }
 
