@@ -68,9 +68,12 @@ export abstract class IronfishCommand extends Command {
    */
   closing = false
 
+  context: 'WalletNode' | 'FullNode'
+
   constructor(argv: string[], config: Config) {
     super(argv, config)
     this.logger = createRootLogger().withTag(this.ctor.id)
+    this.context = config.bin === 'ironfishwallet' ? 'WalletNode' : 'FullNode'
   }
 
   abstract start(): Promise<void> | void
