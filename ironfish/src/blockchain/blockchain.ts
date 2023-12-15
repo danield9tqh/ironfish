@@ -200,7 +200,7 @@ export class Blockchain {
   }
 
   private async seed() {
-    const genesis = BlockSerde.deserialize(this.seedGenesisBlock)
+    const genesis = BlockSerde.deserialize(this.seedGenesisBlock, this.consensus)
 
     const result = await this.addBlock(genesis)
     Assert.isTrue(result.isAdded, `Could not seed genesis: ${result.reason || 'unknown'}`)
@@ -230,7 +230,7 @@ export class Blockchain {
     if (genesisHeader) {
       Assert.isTrue(
         genesisHeader.hash.equals(
-          BlockHeaderSerde.deserialize(this.seedGenesisBlock.header).hash,
+          BlockHeaderSerde.deserialize(this.seedGenesisBlock.header, this.consensus).hash,
         ),
         'Genesis block in network definition does not match existing chain genesis block',
       )
@@ -293,7 +293,7 @@ export class Blockchain {
     let connectResult = null
     try {
       connectResult = await this.blockchainDb.db.transaction(async (tx) => {
-        const hash = block.header.recomputeHash()
+        const hash = block.header.hash
 
         if (!this.hasGenesisBlock && block.header.sequence === GENESIS_BLOCK_SEQUENCE) {
           return await this.connect(block, null, tx)
@@ -939,15 +939,18 @@ export class Blockchain {
 
       graffiti = graffiti ? graffiti : Buffer.alloc(32)
 
-      const header = new BlockHeader(
-        previousSequence + 1,
-        previousBlockHash,
-        noteCommitment,
-        transactionCommitment(transactions),
-        target,
-        BigInt(0),
-        timestamp,
-        graffiti,
+      const header = BlockHeader.fromRaw(
+        {
+          sequence: previousSequence + 1,
+          previousBlockHash,
+          noteCommitment,
+          transactionCommitment: transactionCommitment(transactions),
+          target,
+          randomness: BigInt(0),
+          timestamp,
+          graffiti,
+        },
+        this.consensus,
         noteSize,
         BigInt(0),
       )

@@ -238,14 +238,7 @@ export function expectGetBlockHeadersResponseToMatch(
   a: GetBlockHeadersResponse,
   b: GetBlockHeadersResponse,
 ): void {
-  expect(a.headers.length).toEqual(b.headers.length)
-  a.headers.forEach((headerA, headerIndexA) => {
-    const headerB = b.headers[headerIndexA]
-
-    expect(headerA.hash).toEqual(headerB.hash)
-  })
-
-  expect({ ...a, headers: undefined }).toMatchObject({ ...b, headers: undefined })
+  expect(a.serialize().equals(b.serialize())).toBe(true)
 }
 
 export function expectGetBlocksResponseToMatch(

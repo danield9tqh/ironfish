@@ -62,9 +62,9 @@ export class HeaderEncoding implements IDatabaseEncoding<HeaderValue> {
       randomness,
       new Date(timestamp),
       graffiti,
+      hash,
       noteSize,
       work,
-      hash,
     )
 
     return { header }

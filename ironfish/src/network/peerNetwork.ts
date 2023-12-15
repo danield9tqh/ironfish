@@ -614,7 +614,10 @@ export class PeerNetwork {
       throw new Error(`Invalid GetBlockHeadersResponse: ${message.displayType()}`)
     }
 
-    return { headers: response.headers, time: BenchUtils.end(begin) }
+    const headers = response.headers.map((raw) =>
+      BlockHeader.fromRaw(raw, this.chain.consensus),
+    )
+    return { headers, time: BenchUtils.end(begin) }
   }
 
   async getBlocks(
@@ -634,7 +637,8 @@ export class PeerNetwork {
 
     const exceededSoftLimit = response.getSize() >= SOFT_MAX_MESSAGE_SIZE
     const isMessageFull = exceededSoftLimit || response.blocks.length >= limit
-    return { blocks: response.blocks, time: BenchUtils.end(begin), isMessageFull }
+    const blocks = response.blocks.map((raw) => Block.fromRaw(raw, this.chain.consensus))
+    return { blocks, time: BenchUtils.end(begin), isMessageFull }
   }
 
   private async handleMessage(peer: Peer, message: NetworkMessage): Promise<void> {
@@ -727,7 +731,8 @@ export class PeerNetwork {
       } else if (rpcMessage instanceof GetBlocksResponse) {
         // Should happen when block is requested directly by the block fetcher
         for (const block of rpcMessage.blocks) {
-          await this.handleRequestedBlock(peer, block)
+          const fullBlock = Block.fromRaw(block, this.chain.consensus)
+          await this.handleRequestedBlock(peer, fullBlock)
         }
       }
     }
@@ -782,15 +787,16 @@ export class PeerNetwork {
       return
     }
 
+    const header = BlockHeader.fromRaw(compactBlock.header, this.chain.consensus)
+
     // mark the block as received in the block fetcher and decide whether to continue
     // to validate this compact block or not
-    const shouldProcess = this.blockFetcher.receivedCompactBlock(compactBlock, peer)
+    const shouldProcess = this.blockFetcher.receivedCompactBlock(header.hash, peer)
     if (!shouldProcess) {
       return
     }
 
     // verify the header
-    const header = compactBlock.header
     if (header.sequence === GENESIS_BLOCK_SEQUENCE) {
       this.chain.addInvalid(header.hash, VerificationResultReason.GOSSIPED_GENESIS_BLOCK)
       this.blockFetcher.removeBlock(header.hash)
@@ -880,7 +886,7 @@ export class PeerNetwork {
       partial.type === 'FULL' && fullTransactions.push(partial.value)
     }
 
-    const fullBlock = new Block(compactBlock.header, fullTransactions)
+    const fullBlock = new Block(header, fullTransactions)
     await this.onNewFullBlock(peer, fullBlock, prevHeader)
   }
 

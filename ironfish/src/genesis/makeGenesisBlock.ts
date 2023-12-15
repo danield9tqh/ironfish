@@ -10,7 +10,7 @@ import {
 } from '@ironfish/rust-nodejs'
 import { Blockchain } from '../blockchain'
 import { Logger } from '../logger'
-import { Block } from '../primitives'
+import { Block, BlockHeader } from '../primitives'
 import { Target } from '../primitives/target'
 import { Transaction, TransactionVersion } from '../primitives/transaction'
 import { CurrencyUtils } from '../utils'
@@ -170,9 +170,16 @@ export async function makeGenesisBlock(
     GraffitiUtils.fromString('genesis'),
   )
 
-  // Modify the block with any custom properties.
-  block.header.target = info.target
-  block.header.timestamp = new Date(info.timestamp)
+  block.header = BlockHeader.fromRaw(
+    {
+      ...block.header,
+      target: info.target,
+      timestamp: new Date(info.timestamp),
+    },
+    chain.consensus,
+    block.header.noteSize,
+    block.header.work,
+  )
 
   logger.info('Block complete.')
   return { block }
