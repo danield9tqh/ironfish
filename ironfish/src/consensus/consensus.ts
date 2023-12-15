@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import bufio from 'bufio'
+import { BlockHash, hashBlockHeader, RawBlockHeader } from '../primitives/blockheader'
 import { TransactionVersion } from '../primitives/transaction'
 
 export type ActivationSequence = number | 'never'
@@ -70,6 +72,21 @@ export class Consensus {
     } else {
       return TransactionVersion.V1
     }
+  }
+
+  hashHeader(rawHeader: RawBlockHeader): BlockHash {
+    const bw = bufio.write(180)
+    bw.writeBigU64BE(rawHeader.randomness)
+    bw.writeU32(rawHeader.sequence)
+    bw.writeHash(rawHeader.previousBlockHash)
+    bw.writeHash(rawHeader.noteCommitment)
+    bw.writeHash(rawHeader.transactionCommitment)
+    bw.writeBigU256BE(rawHeader.target.asBigInt())
+    bw.writeU64(rawHeader.timestamp.getTime())
+    bw.writeBytes(rawHeader.graffiti)
+
+    const bytes = bw.render()
+    return hashBlockHeader(bytes)
   }
 }
 
