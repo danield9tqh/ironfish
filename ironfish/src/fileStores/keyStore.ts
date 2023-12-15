@@ -15,11 +15,12 @@ export class KeyStore<TSchema extends Record<string, unknown>> {
   defaults: TSchema
   loaded: Partial<TSchema>
   overrides: Partial<TSchema> = {}
-  keysLoaded = new Set<keyof TSchema>()
+  keysLoaded = new Set<keyof TSchema | unknown>()
   schema: yup.ObjectSchema<Partial<TSchema>> | undefined
 
-  readonly onConfigChange: Event<[key: keyof TSchema, value: TSchema[keyof TSchema]]> =
-    new Event()
+  readonly onConfigChange: Event<
+    [key: keyof TSchema | string, value: TSchema[keyof TSchema] | unknown]
+  > = new Event()
 
   constructor(
     files: FileSystem,

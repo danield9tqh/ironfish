@@ -424,8 +424,8 @@ export class FullNode {
   }
 
   async onConfigChange<Key extends keyof ConfigOptions>(
-    key: Key,
-    newValue: ConfigOptions[Key],
+    key: Key | unknown,
+    newValue: ConfigOptions[Key] | unknown,
   ): Promise<void> {
     switch (key) {
       case 'enableTelemetry': {

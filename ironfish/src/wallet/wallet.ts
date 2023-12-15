@@ -7,7 +7,7 @@ import { v4 as uuid } from 'uuid'
 import { Assert } from '../assert'
 import { Consensus, isExpiredSequence, Verifier } from '../consensus'
 import { Event } from '../event'
-import { Config } from '../fileStores'
+import { KeyStore } from '../fileStores'
 import { createRootLogger, Logger } from '../logger'
 import { getFee } from '../memPool/feeEstimator'
 import { NoteHasher } from '../merkletree'
@@ -80,6 +80,14 @@ export type TransactionOutput = {
   assetId: Buffer
 }
 
+type WalletConfig = KeyStore<{
+  walletSyncingMaxQueueSize: number
+  walletGossipTransactionsMaxQueueSize: number
+  enableWallet: boolean
+  confirmations: number
+  transactionExpirationDelta: number
+}>
+
 export class Wallet {
   readonly onAccountImported = new Event<[account: Account]>()
   readonly onAccountRemoved = new Event<[account: Account]>()
@@ -93,7 +101,7 @@ export class Wallet {
   readonly workerPool: WorkerPool
   readonly chainProcessor: RemoteChainProcessor
   readonly nodeClient: RpcClient | null
-  private readonly config: Config
+  private readonly config: WalletConfig
   private readonly consensus: Consensus
 
   protected rebroadcastAfter: number
@@ -116,7 +124,7 @@ export class Wallet {
     consensus,
     nodeClient,
   }: {
-    config: Config
+    config: WalletConfig
     database: WalletDB
     logger?: Logger
     rebroadcastAfter?: number
