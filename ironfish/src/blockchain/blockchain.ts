@@ -615,7 +615,12 @@ export class Blockchain {
     prev: BlockHeader | null,
     tx: IDatabaseTransaction,
   ): Promise<void> {
-    const verifyBlockAdd = this.verifier.verifyBlockAdd(block, prev, tx).catch((_) => {
+    const fork = await this.findFork(block.header, this.head, tx)
+    if (fork.sequence - this.head.sequence > 100) {
+      throw new Error('Fork limit reached')
+    }
+
+    const verifyBlockAdd = this.verifier.verifyBlockAdd(block, prev).catch((_) => {
       return { valid: false, reason: VerificationResultReason.ERROR }
     })
 
@@ -722,6 +727,10 @@ export class Blockchain {
 
     // Step 0: Find the fork between the two heads
     const fork = await this.findFork(oldHead, newHead, tx)
+
+    if (fork.sequence - this.head.sequence > 100) {
+      throw new Error('Fork limit reached')
+    }
 
     // Step 2: Collect all the blocks from the old head to the fork
     const removeIter = this.iterateFrom(oldHead, fork, tx)
